@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aiim-2026-hw1"
+version = "0.0.1"
+description = "AIIM 2026 Homework 1"
+requires-python = "==3.12.*"
+dependencies = [
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "lightgbm",
+]

@@ -1,0 +1,427 @@
+\documentclass{article}
+\usepackage[a4paper,hmargin=1in,top=1in,bottom=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{color}
+\usepackage{epstopdf}
+\usepackage{caption}
+\DeclareGraphicsRule{.tif}{png}{.png}{`convert #1 `dirname #1`/`basename #1 .tif`.png}
+
+\usepackage{hyperref}
+\makeatletter
+\def\UrlAlphabet{%
+      \do\a\do\b\do\c\do\d\do\e\do\f\do\g\do\h\do\i\do\j%
+      \do\k\do\l\do\m\do\n\do\o\do\p\do\q\do\r\do\s\do\t%
+      \do\u\do\v\do\w\do\x\do\y\do\z\do\A\do\B\do\C\do\D%
+      \do\E\do\F\do\G\do\H\do\I\do\J\do\K\do\L\do\M\do\N%
+      \do\O\do\P\do\Q\do\R\do\S\do\T\do\U\do\V\do\W\do\X%
+      \do\Y\do\Z}
+\def\UrlDigits{\do\1\do\2\do\3\do\4\do\5\do\6\do\7\do\8\do\9\do\0}
+\g@addto@macro{\UrlBreaks}{\UrlOrds}
+\g@addto@macro{\UrlBreaks}{\UrlAlphabet}
+\g@addto@macro{\UrlBreaks}{\UrlDigits}
+\makeatother
+
+\newcommand{\bfx}{\mathbf{x}}
+\newcommand{\bfy}{\mathbf{y}}
+\newcommand{\bfX}{\mathbf{X}}
+
+%------------Title-------------%
+
+\begin{document}
+{\centerline{\LARGE 2026 Fall Artificial Intelligence and Intelligent Medicine}}
+\ \\
+{\centerline{\Large Homework 1}}
+\ \\
+{\centerline{\Large Time-Series Data Analysis: Exploring EHR Data}}
+\ \\
+{\centerline{\Large Due: Nov 4, 23:59:59 p.m. (GMT+8)}}
+\ \\\\
+
+%------------Instructions-------------%
+
+\subsection*{INSTRUCTIONS}
+\begin{enumerate}
+    \item The report must be written in English only.
+    \item Report length limit: at most 10 pages (excluding cover page, references, and appendix), font size should be at least 11pt.
+    \item You must provide all seeds in your report (both the seed behind your final result and any seeds tried during testing), and provide the final-result seed in your code. Without this, we may not be able to reproduce your result.
+    \item You must turn in \texttt{hw1\_student\_ID.zip}. After unzipping, it must contain exactly ONE folder named \texttt{hw1\_student\_ID/}, which includes \texttt{hw1\_student\_ID.pdf} and \texttt{hw1\_student\_ID.ipynb}. TAs will grade your python code using Google Colab. Please ensure your code can be run on the Google Colab GPU environment. Wrong format will not be graded.
+    \item Your \texttt{hw1\_student\_ID.pdf} must include all experimental results, discussions, and specific answers to the questions posed in the assignment.
+\end{enumerate}
+
+\vspace{1em}
+{\normalsize\textbf{Submission package structure (example):}}
+
+\begin{verbatim}
+hw1_student_ID.zip
+|-- hw1_student_ID/
+    |-- hw1_student_ID.pdf
+    |-- hw1_student_ID.ipynb
+    |-- hw1_student_ID.py
+    |-- etc.
+\end{verbatim}
+
+\vspace{0.5em}
+{\normalsize\textbf{How to zip (example command):}}
+\begin{verbatim}
+zip -r hw1_student_ID.zip hw1_student_ID/
+\end{verbatim}
+
+\hrule
+
+%----------------------------
+
+%=====================================================================
+\subsection*{P1 (50\%) \textbf{PhysioNet 2012 Preprocessing}}
+
+We will use \href{https://physionet.org/content/challenge-2012/1.0.0/}{PhysioNet Challenge 2012: Predicting In-Hospital Mortality of ICU Patients}. Each patient has up to 48 hours of ICU monitoring data. \textbf{Set A} is your training set, \textbf{Set B} is your test set; \texttt{Outcomes-a.txt}/\texttt{Outcomes-b.txt} contain each patient's \texttt{In-hospital\_death} label.
+
+\textbf{Data setup.} We provide the dataset files (\texttt{set-a/}, \texttt{set-b/}, \texttt{Outcomes-a.txt}, \texttt{Outcomes-b.txt}) directly; see \url{https://physionet.org/content/challenge-2012/1.0.0/} for reference. Place \texttt{set-a/}, \texttt{set-b/}, \texttt{Outcomes-a.txt}, and \texttt{Outcomes-b.txt} \textbf{in the same folder as \texttt{P12\_preprocess.py}, the code we provide for (c)}.
+
+\textbf{Study design.} This is the default configuration of \texttt{P12\_preprocess.py}, and you must follow it for P1. You may reuse, modify, or discard this processing approach for P2 and P3.
+\begin{itemize}
+    \item Anchor point = 36th hour after ICU admission
+    \item Input window = 12--36 hours after admission (both ends inclusive)
+    \item Bin width = 2 hours (13 bins per patient: hour 12, 14, 16, \ldots, 36)
+\end{itemize}
+
+\begin{itemize}
+\item[(a) 8\%] \textbf{Data structure.} Load one patient record from \texttt{set-a/} using \texttt{pandas}.
+  \begin{enumerate}
+    \item Show \textbf{at least 3 rows} of the resulting dataframe and its shape.
+    \item Pick \textbf{any one row} and correctly state what each of its fields (\texttt{Time}, \texttt{Parameter}, \texttt{Value}) means.
+    \item State your method --- (i) the official PhysioNet documentation, or (ii) scanning every file in Set A --- and list the \textbf{general descriptors} (recorded once, at admission) and the \textbf{time series variables} (observed repeatedly) found across all of Set A.
+  \end{enumerate}
+
+\item[(b) 7\%] \textbf{Relative time conversion.} Pick any one \texttt{.txt} file from \texttt{set-a/}. Convert its \texttt{Time} column (\texttt{HH:MM}, relative to ICU admission) to a numeric hour count. \textbf{Leave \texttt{Parameter} and \texttt{Value} untouched}, and keep every original row (including \texttt{RecordID}); only \texttt{Time} changes. Submit the resulting file as your example, and state the source file, the output file, and your conversion method.
+
+\item[(c) 7\%] \textbf{Per-patient time series structure.} We provide working code for this sub-question, \texttt{P12\_preprocess.py}. Read the code; run it on all patients, and show one patient's raw and processed data. Answer:
+  \begin{enumerate}
+    \item How is a bin with no observed value for a parameter represented?
+    \item What is the placement pattern of the static descriptors (\texttt{Age}, \texttt{Gender}, \texttt{Height}, \texttt{ICUType}, \texttt{Weight}) across a patient's rows?
+    \item What do the two extra columns (\texttt{target}, \texttt{seg\_entry\_cnt}) mean, and what is the bin size?
+  \end{enumerate}
+
+\item[(d) 7\%] \textbf{Windowing to the study design.} Using your pivoted data from (c), keep only the rows where $12 \le \text{timestamp} \le 36$ (both ends inclusive). Show one patient's data before and after this filter. Explain the clinical significance of the anchor point: why predict at hour 36, and why start the input window at hour 12 rather than hour 0?
+
+\item[(e) 7\%] \textbf{Missing value imputation.} Completely open: pick any imputation strategy and justify it (for example, global mean and mode imputation). Using your windowed data from (d), impute the missing values for at least one patient. Show that patient's data before and after imputation, and briefly justify your strategy.
+
+\item[(f) 7\%] \textbf{Zero-padding.} Some patients have fewer than 13 rows after windowing, since they weren't measured during parts of that range. \textbf{Exclude any patient with 0 rows in the window entirely.} For every remaining patient, zero-pad their (imputed, windowed) feature matrix up to length 13. Show one specific patient's data before and after padding.
+
+\item[(g) 7\%] \textbf{Extract $\bfy$ and show class distribution.} For the patients kept in (f), extract one label per patient: $\bfy_{\text{train}}$ (from Set A) and $\bfy_{\text{test}}$ (from Set B), using \texttt{target} (\texttt{In-hospital\_death}). Show the class distribution for both: the count and proportion of 0 and 1.
+\end{itemize}
+
+%=====================================================================
+\subsection*{P2 (35\%) \textbf{Baseline Training (Simple / Medium / Strong)}}
+
+Using your processed dataset (you may reuse the dataset you built in P1, or propose your own approach), train your model. Try to beat the baselines below, and explain in detail how you did it.
+
+\textbf{Report:} graded independently of the tiers below, on how clearly and specifically you explain your approach.
+\begin{itemize}
+    \item[3\%] \textbf{Data preprocessing.} Did you use the dataset from P1 as-is, or make adjustments? Justify your design choices.
+    \item[3\%] \textbf{Method.} What design did you choose (model, optimizer, etc.) to obtain your final result, and why?
+    \item[4\%] \textbf{Result.} State your final result, and how to reproduce it --- including your seed, code, and command.
+\end{itemize}
+
+\textbf{Baseline (25\%):} you receive the points for the \emph{highest} tier you reach --- not the sum of all tiers below it. For example, reaching Medium earns 15\%, not 5\%+15\%.
+
+\begin{center}
+\begin{tabular}{lccc}
+\hline
+Tier reached & Points & AUROC & AUPRC \\
+\hline
+Simple & 5\% & $\ge 0.75$ & $\ge 0.38$ \\
+Medium & 15\% & $\ge 0.80$ & $\ge 0.43$ \\
+Strong & 25\% & $\ge 0.83$ & $\ge 0.46$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Rules:}
+\begin{enumerate}
+    \item \textbf{Both AUROC and AUPRC must meet a tier's threshold for that tier to count.} Clearing only one of the two metrics does not count as reaching that tier.
+    \item \textbf{Never use the test set for training.} If you are found to have used the test set for training, you will receive zero credit for the Baseline.
+    \item \textbf{The three Report points above are graded independently} --- how clearly you address each of data preprocessing, method, and result.
+    \item \textbf{Your report must include a clear, executable reproduction procedure.} If your result cannot be reproduced, you will receive zero credit for the Result, and zero credit for the Baseline.
+\end{enumerate}
+
+%=====================================================================
+\subsection*{P3 (15\%) \textbf{Open Exploration}}
+
+Is there a question about PhysioNet 2012 that particularly interests you? Describe this question, and explain your approach, the experiment you ran, and your conclusion.
+
+No question is fixed as ``correct.'' Each part below is graded independently:
+
+\begin{itemize}
+    \item[3\%] \textbf{Question.} State the question you chose. Graded on originality and insight.
+    \item[3\%] \textbf{Approach.} Describe how you plan to answer your question. Graded on thoroughness, reasonableness, and structure.
+    \item[6\%] \textbf{Experiment.} Design and run an experiment. Graded on execution and analysis.
+    \item[3\%] \textbf{Conclusion.} State a conclusion, grounded strictly in your actual result. Graded on rigor --- follows from the result, no overreach.
+\end{itemize}
+
+\textbf{Rules:}
+\begin{enumerate}
+    \item \textbf{Pick your own question.} Using P1, P2, or any worked example in the appendix as your research question will result in zero credit for this problem.
+    \item \textbf{No external datasets.} Use only the PhysioNet 2012 (P12) dataset.
+\end{enumerate}
+
+Three worked examples, calibrating what full/zero credit on each part looks like in practice, are provided in the Appendix.
+
+\clearpage
+%=====================================================================
+\subsection*{GRADING CRITERIA}
+
+Full credit on each part requires all Rules for that problem to be satisfied; violating a Rule results in zero credit regardless of the tier reached below (see each problem's Rules).
+
+\subsubsection*{P1}
+
+\begin{center}
+\footnotesize
+\begin{tabular}{|p{3cm}|p{1.8cm}|p{9.3cm}|}
+\hline
+Sub-question & Tier \& Score & Description \\
+\hline\hline
+(a) 8\% & Good (8) & $\ge$3 rows + shape shown; the one-row field explanation is correct; method stated \textbf{and} both the general descriptors and time series variables are listed, separated correctly (exact count not required). \\
+\cline{2-3}
+ & Fair (5) & Rows/shape shown and field explanation correct, but the parameter list is incomplete or the two groups are not clearly separated. \\
+\cline{2-3}
+ & Poor (2) & Rows/shape shown, but the field explanation is wrong, or the parameter list is missing/mostly wrong. \\
+\hline\hline
+(b) 7\% & Good (7) & Source/destination/method all stated and match the submitted file; every row's \texttt{Time} correctly converted, \texttt{Parameter}/\texttt{Value} untouched. \\
+\cline{2-3}
+ & Fair (4) & Conversion logic is correct but has minor issues --- e.g.\ a few rows off, one field description vague. \\
+\cline{2-3}
+ & Poor (2) & Submitted file has structural problems (rows dropped/reordered, \texttt{Parameter}/\texttt{Value} altered), or the conversion method is wrong. \\
+\hline\hline
+(c) 7\% & Good (7) & Ran the provided code correctly; all three observations (missing-value representation, static descriptor broadcast pattern, \texttt{target}/\texttt{seg\_entry\_cnt}/bin size) correctly described. \\
+\cline{2-3}
+ & Fair (4) & Code run correctly and shown, but one of the three observations is missing or incorrect. \\
+\cline{2-3}
+ & Poor (2) & Code run but output not actually shown/explained, or two or more observations are missing/incorrect. \\
+\hline\hline
+(d) 7\% & Good (7) & Filter correctly applied (13 rows, timestamp = 12..36); both halves of the anchor-point explanation (why hour 36, why start at hour 12) are present and reasonable. \\
+\cline{2-3}
+ & Fair (4) & Filter correct, but the clinical-significance explanation only addresses one half, or is generic/thin. \\
+\cline{2-3}
+ & Poor (2) & Filter incorrect, or no clinical explanation attempted. \\
+\hline\hline
+(e) 7\% & Good (7) & Before/after shown for at least one patient; strategy is clearly stated, applied consistently, and justified with a defensible reason. \\
+\cline{2-3}
+ & Fair (4) & Before/after shown and strategy applied, but justification is weak/missing, or the applied values don't quite match what was described. \\
+\cline{2-3}
+ & Poor (2) & Before/after not clearly shown, or the ``strategy'' is inconsistent with what was actually applied. \\
+\hline\hline
+(f) 7\% & Good (7) & Correct exclusion (patients with 0 rows in the window dropped); one specific patient's before/after padding clearly and correctly shown. \\
+\cline{2-3}
+ & Fair (4) & Padding logic correct and shown for one patient, but the exclusion rule is not clearly applied. \\
+\cline{2-3}
+ & Poor (2) & Padding not actually applied, or no before/after example shown at all. \\
+\hline\hline
+(g) 7\% & Good (7) & $\bfy_{\text{train}}$/$\bfy_{\text{test}}$ correctly matched to (f)'s kept patients; correct counts and proportions shown for both sets. \\
+\cline{2-3}
+ & Fair (4) & Labels extracted correctly but distribution numbers have small errors, or only one set fully reported. \\
+\cline{2-3}
+ & Poor (2) & Label length mismatched with (f), or class distribution not actually computed/shown. \\
+\hline\hline
+\end{tabular}
+\end{center}
+
+\subsubsection*{P2}
+
+\begin{center}
+\footnotesize
+\begin{tabular}{|p{3cm}|p{1.8cm}|p{9.3cm}|}
+\hline
+Sub-question & Tier \& Score & Description \\
+\hline\hline
+Data preprocessing (3\%) & Good (3) & Specific to what the student actually did (reused P1's dataset, or adjusted it), with a real justification. \\
+\cline{2-3}
+ & Fair (2) & States what was done but justification is thin or generic. \\
+\cline{2-3}
+ & Poor (1) & Doesn't clearly state whether/how the dataset was adjusted. \\
+\hline\hline
+Method (3\%) & Good (3) & Specific model/optimizer/design choices stated, with real reasoning for why they were chosen. \\
+\cline{2-3}
+ & Fair (2) & Choices stated but reasoning is thin or generic. \\
+\cline{2-3}
+ & Poor (1) & Doesn't clearly state what was actually used. \\
+\hline\hline
+Result (4\%) & Good (4) & Final numbers stated, with a concrete and complete reproduction procedure (seed, code, command). \\
+\cline{2-3}
+ & Fair (2) & Numbers stated, but reproduction info is incomplete or too vague to actually rerun. \\
+\cline{2-3}
+ & Poor (1) & Numbers missing or inconsistent with what's reported elsewhere, or no reproduction info given. \\
+\hline\hline
+Baseline (25\%) & Strong (25) & 1. Test AUROC $\ge 0.83$ and Test AUPRC $\ge 0.46$. 2. Follows the rules, and is reproducible. \\
+\cline{2-3}
+ & Medium (15) & 1. Test AUROC $\ge 0.80$ and Test AUPRC $\ge 0.43$. 2. Follows the rules, and is reproducible. \\
+\cline{2-3}
+ & Simple (5) & 1. Test AUROC $\ge 0.75$ and Test AUPRC $\ge 0.38$. 2. Follows the rules, and is reproducible. \\
+\hline\hline
+\end{tabular}
+\end{center}
+
+\subsubsection*{P3}
+
+\begin{center}
+\footnotesize
+\begin{tabular}{|p{3cm}|p{1.8cm}|p{9.3cm}|}
+\hline
+Part & Tier \& Score & Description \\
+\hline\hline
+Question (3\%) & Good (3) & Specific and answerable by a concrete experiment; shows real insight. \\
+\cline{2-3}
+ & Fair (2) & Reasonable and answerable, but fairly obvious/derivative. \\
+\cline{2-3}
+ & Poor (1) & Too vague or broad to point at anything measurable. \\
+\hline\hline
+Approach (3\%) & Good (3) & Detailed, step-by-step, each step justified, logically ordered. \\
+\cline{2-3}
+ & Fair (2) & Steps present but thin --- missing justification for a step, or ordering/structure is unclear. \\
+\cline{2-3}
+ & Poor (1) & No real steps given, or approach doesn't logically lead to answering the question. \\
+\hline\hline
+Experiment (6\%) & Good (6) & Fully executed with real results (numbers/plots/tables) matching the approach, with a clear analysis of what the results show. \\
+\cline{2-3}
+ & Fair (3) & Partially executed --- some results shown, but incomplete, execution deviates from the stated approach without explanation, or results are shown with no analysis. \\
+\cline{2-3}
+ & Poor (1) & No real experiment run; only a prediction or description of what would happen. \\
+\hline\hline
+Conclusion (3\%) & Good (3) & Stays strictly within what the result supports; a rigorous null/negative result scores the same as a positive one. \\
+\cline{2-3}
+ & Fair (2) & Conclusion is directionally supported by the result but overstates it somewhat, or under-analyzes what the result actually shows. \\
+\cline{2-3}
+ & Poor (1) & Restates the initial assumption as proven, or draws a claim clearly broader than the experiment supports. \\
+\hline\hline
+\end{tabular}
+\end{center}
+
+\clearpage
+%=====================================================================
+\subsection*{APPENDIX: Worked Examples (P3)}
+
+To calibrate what full/zero credit on each part of P3 looks like in practice, four examples follow: a confirmed hypothesis, a cleanly refuted one (still full credit --- a rigorous negative result earns equal credit to a positive one), a middling (Fair-level) answer, and one that fails all four parts. \emph{(All data, numbers, and results in these four examples are fabricated for illustration.)}
+
+\textcolor{red}{\textbf{You may not use these questions as your own P3 question. If discovered, you will receive zero credit for P3.}}
+
+\bigskip
+\noindent\textbf{Example Answer 1 --- hypothesis confirmed}
+
+\begin{quote}
+\textbf{1. Question:} SUMMIT's SCANE embedding gives every feature its own learned direction vector $u_j$ (a value is embedded as $\text{value} \times u_j$). The original SUMMIT paper argues this makes the model interpretable: a feature's embedding norm $\|u_j\|$ reflects how much the model leans on that feature. Do the highest-$\|u_j\|$ features here match known ICU mortality risk factors from clinical practice, as the paper's own case study found for hepatocellular carcinoma?
+
+\textbf{2. Approach:}
+(i) Train one SUMMIT model to convergence (same tuned config as the main experiments).
+(ii) Extract \texttt{feature\_embed.weight}, the learned $u_j$ vector for each of the 41 features, and compute $\|u_j\|$ for each.
+(iii) Rank all 41 features by $\|u_j\|$, highest to lowest.
+(iv) Independently, before viewing the ranking, list features expected to be clinically meaningful for ICU mortality per standard critical-care knowledge (GCS, blood pressure, renal/coagulation markers), separately from those expected to be marginal (e.g.\ cholesterol, a chronic-risk marker).
+(v) Compare the ranking's top and bottom against that pre-written list.
+This approach was chosen because ranking by embedding norm is a cheap, purely model-internal probe that needs no retraining, and pre-registering the clinical-knowledge list \emph{before} looking at the ranking (step iv) guards against cherry-picking which features to highlight after the fact.
+
+\textbf{3. Experiment:} Trained one SUMMIT model (seed 42), ranked all 41 features by embedding norm:
+
+\begin{center}
+\begin{tabular}{clc c clc}
+\hline
+Rank & Top 5 & $\|u_j\|$ & & Rank & Bottom 5 & $\|u_j\|$ \\
+\hline
+1 & NISysABP & 5.532 & & 37 & Glucose & 2.937 \\
+2 & Platelets & 5.467 & & 38 & TroponinI & 2.762 \\
+3 & NIDiasABP & 5.463 & & 39 & Cholesterol & 2.604 \\
+4 & SysABP & 5.424 & & 40 & HCO3 & 2.592 \\
+5 & GCS & 5.171 & & 41 & AST & 2.476 \\
+\hline
+\end{tabular}
+\end{center}
+
+\emph{Analysis:} all top 5 (blood pressure ×3, platelets, GCS) are textbook ICU severity/mortality indicators, and the ranking bottom is dominated by labs ordered only for specific suspicion (troponin, cholesterol). Two features just outside the top 5, at \#6 and \#8 (\texttt{Weight} and \texttt{Gender}), lack an obvious clinical mortality link; both are static descriptors the pivot step broadcasts onto every row, giving them far higher observation density than any real time-series reading --- that density plausibly inflates their embedding norm.
+
+\textbf{4. Conclusion:} Mostly confirmed --- the ranking matches known ICU risk factors at the top and bottom, with the \texttt{Weight}/\texttt{Gender} anomaly explained by a pipeline artifact rather than a clinical signal. This is one model, one seed, so it shows $\|u_j\|$ \emph{can} align with clinical knowledge, at an unproven reliability; it establishes only that the ranking is \emph{consistent with} known risk factors and confounded by observation frequency in at least two cases, not that $\|u_j\|$ is a causal importance measure (e.g.\ via ablation of a high-$\|u_j\|$ feature) --- this experiment supports nothing stronger than that.
+
+\emph{Commentary:} Good across all four parts --- the question is specific and testable, the approach is detailed with a pre-registered comparison guarding against post-hoc rationalization, the experiment was actually run with results shown and analyzed, and the conclusion stays within what a single-model, single-seed result can support.
+\end{quote}
+
+\bigskip
+\noindent\textbf{Example Answer 2 --- hypothesis refuted (still full credit)}
+
+\begin{quote}
+\textbf{1. Question:} STraTS consistently beats SUMMIT on this task (Test AUROC 0.833 vs.\ 0.808, tuned). The architectures' main structural difference is time encoding: STraTS gives every observation a \emph{continuous} time embedding (a small MLP over the exact fractional time), while SUMMIT has only a \emph{discrete} per-2-hour-bin position embedding. Does the continuous time signal explain STraTS' advantage?
+
+\textbf{2. Approach:}
+(i) Start from STraTS' tuned config (same data, hyperparameters, training procedure), holding the experimental setup fixed while varying only the architecture.
+(ii) Remove the \texttt{time\_cve} term from the token embedding, leaving \texttt{value\_cve + feature\_embed}, isolating continuous time as the single variable under test.
+(iii) Retrain from scratch with 5 non-consecutive seeds (42, 7, 256, 123, 1001) and evaluate each on the same test set, reporting mean $\pm$ standard deviation.
+(iv) Predicted outcome under the hypothesis: mean performance drops from STraTS' level (0.833/0.462) toward SUMMIT's (0.808/0.450).
+This ablation approach was chosen because it isolates the one architectural difference of interest (continuous vs.\ discrete time) while holding everything else fixed; comparing STraTS and SUMMIT directly as black boxes, by contrast, would leave any performance gap unattributed to a specific mechanism. Using 5 seeds rather than 1 was chosen so that ``no meaningful difference'' could be backed by a spread estimate instead of a single point estimate.
+
+\textbf{3. Experiment:} Trained STraTS with its time embedding removed, over 5 non-consecutive seeds (42, 7, 256, 123, 1001; otherwise identical to the tuned STraTS config):
+
+\begin{center}
+\small
+\begin{tabular}{lcc}
+\hline
+Model & AUROC (mean $\pm$ std) & AUPRC (mean $\pm$ std) \\
+\hline
+STraTS (full) & 0.831 $\pm$ 0.004 & 0.459 $\pm$ 0.010 \\
+\textbf{STraTS (time embedding removed)} & \textbf{0.830 $\pm$ 0.005} & \textbf{0.464 $\pm$ 0.011} \\
+SUMMIT & 0.807 $\pm$ 0.006 & 0.448 $\pm$ 0.009 \\
+\hline
+\end{tabular}
+\end{center}
+
+\emph{Analysis:} across 5 seeds, removing the continuous time embedding leaves AUROC within one standard deviation of the full model (0.830 $\pm$ 0.005 vs.\ 0.831 $\pm$ 0.004 --- the means differ by less than either model's own spread), and AUPRC is nominally \emph{higher} without it (0.464 $\pm$ 0.011 vs.\ 0.459 $\pm$ 0.010), the opposite direction predicted by the hypothesis. Both ablated and full STraTS remain several standard deviations clear of SUMMIT's mean (0.807/0.448), so the ablated model still behaves like STraTS, not like SUMMIT.
+
+\textbf{4. Conclusion:} Hypothesis refuted --- continuous time is at most a minor driver of STraTS' advantage over SUMMIT on this task. With 5 seeds instead of 1, ``no meaningful difference'' is now backed by overlapping mean$\pm$std ranges rather than a single point estimate, though it still rules out only the continuous-time mechanism and leaves the real source of the gap unidentified. Two untested candidate explanations remain equally plausible: STraTS' Continuous Value Embedding being a more expressive function of the raw value than SCANE's plain $\text{value} \times u_j$ scaling, and STraTS' learned attention-pooling capturing more than SUMMIT's uniform mean-pooling --- these stand as hypotheses for follow-up, but claiming either as the confirmed answer would overreach beyond what was tested here.
+
+\emph{Commentary:} Good across all four parts, including Conclusion --- a rigorous negative result, backed by a 5-seed mean$\pm$std comparison rather than a single run, and naming untested alternative explanations rather than overreaching, earns the same credit as a positive finding. Note that multiple seeds are not a hard requirement for this assignment --- a single well-scoped run is sufficient for full credit here --- but for a final project, we strongly encourage students to replicate across seeds like this.
+\end{quote}
+
+\bigskip
+\noindent\textbf{Example Answer 3 --- Fair overall}
+
+\begin{quote}
+\textbf{1. Question:} Missingness in this dataset is informative rather than random, as already noted in P1(a) --- a feature is more likely to be measured when a clinician already suspects something is wrong. Does that mean a model trained \emph{only} on which features were measured, ignoring their actual values, still predicts mortality reasonably well?
+
+\textbf{2. Approach:}
+(i) For each patient and each of the 41 features, build a binary indicator: 1 if the feature has at least one observation in the 12--36hr window, 0 otherwise.
+(ii) Train a logistic regression on these 41 missingness indicators only (no real values).
+(iii) Compare its test AUROC/AUPRC to the full-value LSTM baseline from P2.
+
+\textbf{3. Experiment:} Trained the missingness-only logistic regression:
+
+\begin{center}
+\begin{tabular}{lcc}
+\hline
+Model & Test AUROC & Test AUPRC \\
+\hline
+Missingness-only (logistic regression) & 0.712 & 0.301 \\
+Full-value LSTM (P2 baseline) & 0.835 & 0.482 \\
+\hline
+\end{tabular}
+\end{center}
+
+\emph{Analysis:} the missingness-only model scores lower than the full-value LSTM on both metrics (0.712 vs.\ 0.835 AUROC, 0.301 vs.\ 0.482 AUPRC).
+
+\textbf{4. Conclusion:} ``Missingness patterns alone recover most of the model's predictive power, so which labs get ordered is nearly as important as their values.''
+
+\emph{Commentary:} Fair overall. The Question is reasonable and answerable, but fairly derivative --- it's the obvious next question after P1(a)'s observation that missingness is informative, not an especially original angle. The Approach has steps present but is thin: no internal validation split is described, no seed is stated, and there's no justification for choosing logistic regression specifically over any other simple model. The Experiment was actually run, but the analysis is surface-level --- it only restates which number is bigger, with no discussion of which features' missingness drove the score and no check for confounds like ICU-type or length-of-stay effects. The Conclusion is directionally supported by the result but overstates it --- 0.712 vs.\ 0.835 is a substantial drop, not evidence that missingness is ``nearly as important'' as real values; a rigorous conclusion would claim only that missingness carries \emph{some} signal above chance.
+\end{quote}
+
+\bigskip
+\noindent\textbf{Example Answer 4 --- fails all four parts (for calibration, not credit)}
+
+\begin{quote}
+\textbf{1. Question:} ``Is PhysioNet 2012 a good dataset for machine learning?''
+
+\textbf{2. Approach:} ``I will analyze the data and see what patterns come up.''
+
+\textbf{3. Experiment:} ``Based on my analysis, deep learning models should generally perform better on this kind of data.''
+
+\textbf{4. Conclusion:} ``This confirms that the dataset is suitable for machine learning and deep learning models are a good choice.''
+
+\emph{Commentary:} Fails all four parts. The question is too vague to be answered by any specific experiment, pointing at nothing measurable. The approach is one sentence, with no steps, no stated comparison, and nothing a reader could follow or reproduce. No experiment was run --- the ``experiment'' is a prediction with no numbers, no code, nothing measured, despite invoking the word ``analysis.'' The conclusion restates the initial assumption as proven despite no result to draw it from, then generalizes to a claim far broader than any single-dataset experiment could support.
+\end{quote}
+
+\end{document}

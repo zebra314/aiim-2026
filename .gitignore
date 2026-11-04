@@ -1,0 +1,18 @@
+*.tar.gz
+
+# HW1
+*.txt
+set-a/
+set-b/
+
+# Latex
+*.aux
+*.log
+*.out
+*.fdb_latexmk
+*.fls
+*.gz
+
+# Python
+__pycache__/
+.venv/
