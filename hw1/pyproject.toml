@@ -12,4 +12,6 @@ dependencies = [
     "pandas",
     "scikit-learn",
     "lightgbm",
+    "matplotlib",
+    "ipykernel",
 ]

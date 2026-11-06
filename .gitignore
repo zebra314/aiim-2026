@@ -15,4 +15,5 @@ set-b/
 
 # Python
 __pycache__/
-.venv/
+*.venv/
+*.egg-info/
